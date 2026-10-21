@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Таймер</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: transparent;
+  }
+  .timer-widget {
+    width: 320px;
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    user-select: none;
+  }
+  .time-display {
+    font-size: 56px;
+    font-weight: 700;
+    text-align: center;
+    color: #1a1a1a;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 2px;
+    line-height: 1;
+  }
+  .time-display.warning { color: #e63946; }
+  .buttons {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .buttons button {
+    padding: 8px 4px;
+    font-size: 13px;
+    font-weight: 600;
+    border: 1px solid #d0d0d0;
+    background: #f7f7f7;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: #333;
+  }
+  .buttons button:hover {
+    background: #e8e8e8;
+    border-color: #999;
+  }
+  .buttons button.active {
+    background: #2563eb;
+    color: #fff;
+    border-color: #2563eb;
+  }
+  .controls {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+  .controls button {
+    flex: 1;
+    padding: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .controls button:hover { opacity: 0.85; }
+  .controls button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  #startBtn { background: #22c55e; color: #fff; }
+  #pauseBtn { background: #f59e0b; color: #fff; }
+  #resetBtn { background: #ef4444; color: #fff; }
+  .progress-wrap {
+    width: 100%;
+    height: 10px;
+    background: #e5e7eb;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .progress-bar {
+    height: 100%;
+    width: 100%;
+    background: #2563eb;
+    border-radius: 5px;
+    transition: width 0.3s linear;
+  }
+  .progress-bar.warning { background: #e63946; }
+</style>
+</head>
+<body>
+<div class="timer-widget">
+  <div class="time-display" id="display">01:00</div>
+
+  <div class="buttons" id="presets">
+    <button data-sec="60">1</button>
+    <button data-sec="90">1,5</button>
+    <button data-sec="120">2</button>
+    <button data-sec="150">2,5</button>
+    <button data-sec="180">3</button>
+    <button data-sec="900">15</button>
+  </div>
+
+  <div class="controls">
+    <button id="startBtn">Старт</button>
+    <button id="pauseBtn" disabled>Пауза</button>
+    <button id="resetBtn">Сброс</button>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-bar" id="progress"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const display = document.getElementById('display');
+  const progress = document.getElementById('progress');
+  const presetBtns = document.querySelectorAll('#presets button');
+  const startBtn = document.getElementById('startBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const resetBtn = document.getElementById('resetBtn');
+
+  let totalSeconds = 60;      // выбранное время
+  let remainingSeconds = 60;  // оставшееся время
+  let intervalId = null;
+  let isRunning = false;
+
+  function formatTime(sec) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  }
+
+  function render() {
+    display.textContent = formatTime(remainingSeconds);
+    const percent = totalSeconds > 0 ? (remainingSeconds / totalSeconds) * 100 : 0;
+    progress.style.width = percent + '%';
+
+    const isWarning = remainingSeconds <= 10;
+    display.classList.toggle('warning', isWarning && remainingSeconds > 0);
+    progress.classList.toggle('warning', isWarning && remainingSeconds > 0);
+  }
+
+  function tick() {
+    if (remainingSeconds > 0) {
+      remainingSeconds--;
+      render();
+    }
+    if (remainingSeconds <= 0) {
+      stopTimer();
+      display.textContent = '00:00';
+    }
+  }
+
+  function startTimer() {
+    if (isRunning || remainingSeconds <= 0) return;
+    isRunning = true;
+    intervalId = setInterval(tick, 1000);
+    startBtn.disabled = true;
+    pauseBtn.disabled = false;
+  }
+
+  function pauseTimer() {
+    if (!isRunning) return;
+    clearInterval(intervalId);
+    isRunning = false;
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+  }
+
+  function stopTimer() {
+    clearInterval(intervalId);
+    isRunning = false;
+    startBtn.disabled = false;
+    pauseBtn.disabled = true;
+  }
+
+  function resetTimer() {
+    stopTimer();
+    remainingSeconds = totalSeconds;
+    render();
+  }
+
+  function selectPreset(seconds, btn) {
+    stopTimer();
+    totalSeconds = seconds;
+    remainingSeconds = seconds;
+    presetBtns.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    render();
+  }
+
+  presetBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      selectPreset(parseInt(btn.dataset.sec, 10), btn);
+    });
+  });
+
+  startBtn.addEventListener('click', startTimer);
+  pauseBtn.addEventListener('click', pauseTimer);
+  resetBtn.addEventListener('click', resetTimer);
+
+  // По умолчанию выбран пресет "1 минута"
+  presetBtns[0].classList.add('active');
+  render();
+})();
+</script>
+</body>
+</html>
